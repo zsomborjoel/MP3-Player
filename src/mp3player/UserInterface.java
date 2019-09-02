@@ -2,11 +2,14 @@
 package mp3player;
 
 import jaco.mp3.player.MP3Player;
+import java.io.File;
 import javax.swing.JFileChooser;
+import javax.swing.filechooser.FileNameExtensionFilter;
 
 public class UserInterface extends javax.swing.JFrame {
 
     private MP3Player mp3player;
+    private File songFile;
     private String songName;
     private String currentDirectory = "home.user";
     private String currentPath;
@@ -183,10 +186,14 @@ public class UserInterface extends javax.swing.JFrame {
 
     private void ejectButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_ejectButtonActionPerformed
         JFileChooser openFile = new JFileChooser(currentDirectory);
-        //setFileFilter
-        //result
-        // if approved 
-            //add the song to player
+        FileNameExtensionFilter filter = new FileNameExtensionFilter("MP3 File", "mp3");
+        openFile.setFileFilter(filter);
+        int returnVal = openFile.showOpenDialog(null);
+        if(returnVal == JFileChooser.APPROVE_OPTION) {
+            songFile = openFile.getSelectedFile();
+            mp3player.addToPlayList(songFile);
+            mp3player.skipForward();
+        }
     }//GEN-LAST:event_ejectButtonActionPerformed
 
     private void stopButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_stopButtonActionPerformed
@@ -195,10 +202,10 @@ public class UserInterface extends javax.swing.JFrame {
 
     private void playAndPauseButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_playAndPauseButtonActionPerformed
         if(playAndPauseButton.isSelected()) {
-            //mp3player.play();
+            mp3player.play();
             playAndPauseButton.setIcon(new javax.swing.ImageIcon(getClass().getResource("/mp3player/icons/pause.png")));
         } else {
-            //mp3player.stop();
+            mp3player.stop();
             playAndPauseButton.setIcon(new javax.swing.ImageIcon(getClass().getResource("/mp3player/icons/play.png")));
         }
     }//GEN-LAST:event_playAndPauseButtonActionPerformed
