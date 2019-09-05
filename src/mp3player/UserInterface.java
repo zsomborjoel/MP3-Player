@@ -3,23 +3,24 @@ package mp3player;
 
 import jaco.mp3.player.MP3Player;
 import java.io.File;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
+import javax.sound.sampled.FloatControl;
+import javax.sound.sampled.Line;
+import javax.sound.sampled.LineUnavailableException;
 import javax.swing.JFileChooser;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.sound.sampled.Mixer;
 
 public class UserInterface extends javax.swing.JFrame {
 
-    private MP3Player mp3player;
+    private MP3Player player;
     private File songFile;
-    private String songName;
     private String currentDirectory = "home.user";
-    private String currentPath;
-    private String imagePath;
-    private String pngName;
-    private String pngDirectory;
-    
+
     public UserInterface() {
         initComponents();
-
+        player = mp3Player();
     }
  
     @SuppressWarnings("unchecked")
@@ -35,7 +36,7 @@ public class UserInterface extends javax.swing.JFrame {
         jLabel1 = new javax.swing.JLabel();
         exitButton = new javax.swing.JButton();
         jPanel3 = new javax.swing.JPanel();
-        jLabel2 = new javax.swing.JLabel();
+        display = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setBackground(new java.awt.Color(153, 255, 255));
@@ -45,9 +46,13 @@ public class UserInterface extends javax.swing.JFrame {
         jPanel1.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)));
 
         soundSlider.setBackground(new java.awt.Color(255, 255, 255));
+        soundSlider.addChangeListener(new javax.swing.event.ChangeListener() {
+            public void stateChanged(javax.swing.event.ChangeEvent evt) {
+                soundSliderStateChanged(evt);
+            }
+        });
 
         stopButton.setIcon(new javax.swing.ImageIcon(getClass().getResource("/mp3player/icons/stop.PNG"))); // NOI18N
-        stopButton.setActionCommand("");
         stopButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 stopButtonActionPerformed(evt);
@@ -133,8 +138,8 @@ public class UserInterface extends javax.swing.JFrame {
         jPanel3.setBackground(new java.awt.Color(255, 255, 255));
         jPanel3.setBorder(new javax.swing.border.MatteBorder(null));
 
-        jLabel2.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
-        jLabel2.setText("Playing");
+        display.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        display.setText("Playing");
 
         javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
         jPanel3.setLayout(jPanel3Layout);
@@ -142,14 +147,14 @@ public class UserInterface extends javax.swing.JFrame {
             jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel3Layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(jLabel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(display, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addContainerGap())
         );
         jPanel3Layout.setVerticalGroup(
             jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel3Layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(jLabel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(display, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addContainerGap())
         );
 
@@ -191,27 +196,76 @@ public class UserInterface extends javax.swing.JFrame {
         int returnVal = openFile.showOpenDialog(null);
         if(returnVal == JFileChooser.APPROVE_OPTION) {
             songFile = openFile.getSelectedFile();
-            mp3player.addToPlayList(songFile);
-            mp3player.skipForward();
+            player.addToPlayList(songFile);
+            player.skipForward();
+            display.setText("Playing ... " + songFile.getName());
         }
     }//GEN-LAST:event_ejectButtonActionPerformed
 
     private void stopButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_stopButtonActionPerformed
-        mp3player.stop();
+        player.stop();
+        playAndPauseButton.setSelected(false);
+        playAndPauseButton.setIcon(new javax.swing.ImageIcon(getClass().getResource("/mp3player/icons/play.png")));
     }//GEN-LAST:event_stopButtonActionPerformed
 
     private void playAndPauseButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_playAndPauseButtonActionPerformed
         if(playAndPauseButton.isSelected()) {
-            mp3player.play();
+            player.play();
             playAndPauseButton.setIcon(new javax.swing.ImageIcon(getClass().getResource("/mp3player/icons/pause.png")));
         } else {
-            mp3player.stop();
+            player.pause();
             playAndPauseButton.setIcon(new javax.swing.ImageIcon(getClass().getResource("/mp3player/icons/play.png")));
         }
     }//GEN-LAST:event_playAndPauseButtonActionPerformed
 
-
+    private void soundSliderStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_soundSliderStateChanged
+        float sliderValue = (float) soundSlider.getValue();
+        volumeControl(sliderValue / 100);
+    }//GEN-LAST:event_soundSliderStateChanged
+    //call mp3 player
+    private MP3Player mp3Player(){
+        MP3Player mp3Player = new MP3Player();
+        return mp3Player;
+    }
+    
+    private void volumeControl(float volume) {
+        Mixer.Info[] mixers = AudioSystem.getMixerInfo();
+        for(Mixer.Info mixerInfo : mixers) {
+            Mixer mixer = AudioSystem.getMixer(mixerInfo);
+            Line.Info[] lineInfos = mixer.getTargetLineInfo();
+            
+            for(Line.Info lineInfo : lineInfos) {
+                Line line = null;
+                boolean opened = true;         
+                
+                try {
+                    line = mixer.getLine(lineInfo);
+                    opened = line.isOpen() || line instanceof Clip;
+                    
+                    if(!opened) {
+                        line.open();
+                    }
+                    
+                    FloatControl volControl = (FloatControl) line.getControl(FloatControl.Type.VOLUME);
+                    volControl.setValue(volume);
+                                        
+                } catch(LineUnavailableException lineException) {
+                } catch(IllegalArgumentException illException) {
+                } finally {
+                    //close line if open
+                    if(line != null && !opened){
+                        line.close();
+                    }
+                }            
+            }
+        }
+    }
+    
+    
+    
+    
     public static void main(String args[]) {
+
         try {
             for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
                 if ("Nimbus".equals(info.getName())) {
@@ -237,10 +291,10 @@ public class UserInterface extends javax.swing.JFrame {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JLabel display;
     private javax.swing.JButton ejectButton;
     private javax.swing.JButton exitButton;
     private javax.swing.JLabel jLabel1;
-    private javax.swing.JLabel jLabel2;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JPanel jPanel3;
@@ -248,4 +302,7 @@ public class UserInterface extends javax.swing.JFrame {
     private javax.swing.JSlider soundSlider;
     private javax.swing.JButton stopButton;
     // End of variables declaration//GEN-END:variables
+
 }
+
+
