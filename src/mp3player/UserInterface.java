@@ -253,7 +253,7 @@ public class UserInterface extends javax.swing.JFrame {
                 } catch(IllegalArgumentException illException) {
                 } finally {
                     //close line if open
-                    if(line != null && !opened){
+                    if(line != null && opened){
                         line.close();
                     }
                 }            
